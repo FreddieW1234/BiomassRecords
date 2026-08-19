@@ -1,10 +1,14 @@
 import { loadSettings } from '../config'
 import type {
+  Boiler,
+  CleaningEntry,
   DeleteResponse,
+  EarningEntry,
   HealthResponse,
-  RecordItem,
-  RecordResponse,
-  RecordsResponse,
+  ItemResponse,
+  ListResponse,
+  MaintenanceEntry,
+  MeterReading,
 } from './types'
 
 export class ApiError extends Error {
@@ -34,11 +38,7 @@ function joinUrl(base: string, path: string) {
 async function request<T>(path: string, init: RequestInit = {}): Promise<ApiResult<T>> {
   const { apiUrl, apiKey } = loadSettings()
   if (!apiUrl) {
-    throw new ApiError(
-      'No API URL set. Paste the Cloudflare tunnel hostname in Connection Lab.',
-      0,
-      path,
-    )
+    throw new ApiError('No API URL configured in this build.', 0, path)
   }
 
   const method = (init.method || 'GET').toUpperCase()
@@ -57,7 +57,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<ApiResu
     response = await fetch(url, { ...init, method, headers })
   } catch {
     throw new ApiError(
-      `Could not reach ${url}. The tunnel may be down, the URL may be wrong, or CORS is blocking this origin.`,
+      'Could not reach the office server. Check your connection and try again.',
       0,
       path,
     )
@@ -79,9 +79,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<ApiResu
       parsed && typeof parsed === 'object' && 'error' in parsed
         ? String((parsed as { error: unknown }).error)
         : `Request failed (${response.status})`
-    const error = new ApiError(message, response.status, path)
-    Object.assign(error, { ms })
-    throw error
+    throw new ApiError(message, response.status, path)
   }
 
   return { data: parsed as T, status: response.status, ms, path, method }
@@ -91,24 +89,29 @@ export function getHealth() {
   return request<HealthResponse>('/api/health')
 }
 
-export function listRecords() {
-  return request<RecordsResponse>('/api/records')
+export type Resource<TItem> = {
+  list: () => Promise<ApiResult<ListResponse<TItem>>>
+  create: (payload: Record<string, unknown>) => Promise<ApiResult<ItemResponse<TItem>>>
+  update: (id: number, payload: Record<string, unknown>) => Promise<ApiResult<ItemResponse<TItem>>>
+  remove: (id: number) => Promise<ApiResult<DeleteResponse>>
 }
 
-export function createRecord(payload: Pick<RecordItem, 'title' | 'body'>) {
-  return request<RecordResponse>('/api/records', {
-    method: 'POST',
-    body: JSON.stringify(payload),
-  })
+function resource<TItem>(base: string): Resource<TItem> {
+  return {
+    list: () => request<ListResponse<TItem>>(base),
+    create: (payload) =>
+      request<ItemResponse<TItem>>(base, { method: 'POST', body: JSON.stringify(payload) }),
+    update: (id, payload) =>
+      request<ItemResponse<TItem>>(`${base}/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(payload),
+      }),
+    remove: (id) => request<DeleteResponse>(`${base}/${id}`, { method: 'DELETE' }),
+  }
 }
 
-export function updateRecord(id: number, payload: Pick<RecordItem, 'title' | 'body'>) {
-  return request<RecordResponse>(`/api/records/${id}`, {
-    method: 'PUT',
-    body: JSON.stringify(payload),
-  })
-}
-
-export function deleteRecord(id: number) {
-  return request<DeleteResponse>(`/api/records/${id}`, { method: 'DELETE' })
-}
+export const boilersApi = resource<Boiler>('/api/boilers')
+export const cleaningApi = resource<CleaningEntry>('/api/cleaning')
+export const maintenanceApi = resource<MaintenanceEntry>('/api/maintenance')
+export const meterReadingsApi = resource<MeterReading>('/api/meter-readings')
+export const earningsApi = resource<EarningEntry>('/api/earnings')

@@ -1,0 +1,191 @@
+import { useMemo, type FormEvent } from 'react'
+import { meterReadingsApi } from '../api/client'
+import type { MeterReading } from '../api/types'
+import { BoilerSelect } from '../components/BoilerSelect'
+import { useBoilers } from '../hooks/useBoilers'
+import { useLedger } from '../hooks/useLedger'
+import { boilerLabel, figure, showDate, today } from '../lib/format'
+
+const empty = () => ({
+  date: today(),
+  boiler_id: '',
+  reading: '',
+  staff: '',
+  notes: '',
+})
+
+export function MeterReadings() {
+  const { boilers, byId } = useBoilers()
+  const ledger = useLedger<MeterReading, ReturnType<typeof empty>>({
+    api: meterReadingsApi,
+    empty,
+    toForm: (r) => ({
+      date: r.date,
+      boiler_id: String(r.boiler_id),
+      reading: String(r.reading),
+      staff: r.staff,
+      notes: r.notes,
+    }),
+  })
+
+  // Usage since the previous reading of the same boiler (list is newest-first).
+  const usage = useMemo(() => {
+    const map = new Map<number, number>()
+    const byBoiler = new Map<number, MeterReading[]>()
+    for (const item of ledger.items) {
+      const list = byBoiler.get(item.boiler_id) || []
+      list.push(item)
+      byBoiler.set(item.boiler_id, list)
+    }
+    for (const list of byBoiler.values()) {
+      const sorted = [...list].sort((a, b) =>
+        a.date === b.date ? a.id - b.id : a.date < b.date ? -1 : 1,
+      )
+      for (let i = 1; i < sorted.length; i++) {
+        map.set(sorted[i].id, sorted[i].reading - sorted[i - 1].reading)
+      }
+    }
+    return map
+  }, [ledger.items])
+
+  function onSubmit(event: FormEvent) {
+    event.preventDefault()
+    void ledger.submit()
+  }
+
+  return (
+    <div className="page">
+      <div className="page-head">
+        <h1>Meter readings</h1>
+        <p>Heat meter readings per boiler. The "used" column shows the change since that boiler's previous reading.</p>
+      </div>
+
+      <div className="split">
+        <form className="card form-card" onSubmit={onSubmit}>
+          <h2>{ledger.editingId ? `Edit reading #${ledger.editingId}` : 'New reading'}</h2>
+          <div className="field-row">
+            <label>
+              Date
+              <input
+                type="date"
+                value={ledger.form.date}
+                onChange={(e) => ledger.setField('date', e.target.value)}
+                required
+              />
+            </label>
+            <label>
+              Read by
+              <input
+                value={ledger.form.staff}
+                onChange={(e) => ledger.setField('staff', e.target.value)}
+                placeholder="Optional"
+              />
+            </label>
+          </div>
+          <label>
+            Boiler
+            <BoilerSelect
+              boilers={boilers}
+              value={ledger.form.boiler_id}
+              onChange={(value) => ledger.setField('boiler_id', value)}
+              required
+            />
+          </label>
+          <label>
+            Meter reading
+            <input
+              type="number"
+              inputMode="decimal"
+              step="any"
+              value={ledger.form.reading}
+              onChange={(e) => ledger.setField('reading', e.target.value)}
+              placeholder="e.g. 152340"
+              required
+            />
+          </label>
+          <label>
+            Notes
+            <textarea
+              value={ledger.form.notes}
+              onChange={(e) => ledger.setField('notes', e.target.value)}
+              rows={2}
+            />
+          </label>
+          <div className="row">
+            <button type="submit" className="button" disabled={ledger.saving}>
+              {ledger.editingId ? 'Save changes' : 'Add reading'}
+            </button>
+            {ledger.editingId && (
+              <button type="button" className="button ghost" onClick={ledger.cancel}>
+                Cancel
+              </button>
+            )}
+          </div>
+          {ledger.error && <p className="err">{ledger.error}</p>}
+          {boilers.length === 0 && (
+            <p className="hint">No boilers registered yet — add them on the Boilers page first.</p>
+          )}
+        </form>
+
+        <section className="card">
+          <div className="card-head">
+            <h2>Readings</h2>
+            <span className="count">{ledger.items.length}</span>
+          </div>
+          {ledger.loading ? (
+            <p className="muted">Loading…</p>
+          ) : ledger.items.length === 0 ? (
+            <p className="muted">No readings recorded yet.</p>
+          ) : (
+            <div className="table-wrap">
+              <table className="ledger">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Boiler</th>
+                    <th className="num">Reading</th>
+                    <th className="num">Used</th>
+                    <th>By</th>
+                    <th>Notes</th>
+                    <th />
+                  </tr>
+                </thead>
+                <tbody>
+                  {ledger.items.map((reading) => {
+                    const delta = usage.get(reading.id)
+                    return (
+                      <tr key={reading.id}>
+                        <td className="nowrap">{showDate(reading.date)}</td>
+                        <td className="nowrap">{boilerLabel(byId.get(reading.boiler_id))}</td>
+                        <td className="num">{figure(reading.reading)}</td>
+                        <td className="num">{delta === undefined ? '—' : figure(delta)}</td>
+                        <td>{reading.staff || '—'}</td>
+                        <td className="wrap">{reading.notes || '—'}</td>
+                        <td className="actions">
+                          <button
+                            type="button"
+                            className="text-button"
+                            onClick={() => ledger.edit(reading)}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            type="button"
+                            className="text-button danger"
+                            onClick={() => void ledger.remove(reading.id)}
+                          >
+                            Delete
+                          </button>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+      </div>
+    </div>
+  )
+}

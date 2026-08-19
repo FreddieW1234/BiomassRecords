@@ -10,12 +10,12 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+
+# Old placeholder API — real one lives in ..\API on the office server. Safe to delete this folder.
+server/
 *.local
 .env
 .env.local
-
-# Local API database
-server/data
 
 # Editor directories and files
 .vscode/*

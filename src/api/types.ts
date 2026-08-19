@@ -3,42 +3,65 @@ export type HealthResponse = {
   service: string
   time: string
   database: string
-  recordCount: number
+  boilerCount: number
+  cleaningCount: number
+  maintenanceCount: number
+  meterReadingCount: number
+  earningCount: number
 }
 
-export type RecordItem = {
+type Timestamps = {
   id: number
-  title: string
-  body: string
   created_at: string
   updated_at: string
 }
 
-export type RecordsResponse = {
-  records: RecordItem[]
+export type Boiler = Timestamps & {
+  number: string
+  type: string
+  location: string
+  notes: string
 }
 
-export type RecordResponse = {
-  record: RecordItem
+export type CleaningEntry = Timestamps & {
+  date: string
+  staff: string
+  boiler_id: number | null
+  work_done: string
+  duration: string
+  next_due: string
 }
 
-export type DeleteResponse = {
-  ok: boolean
-  id: number
+export type MaintenanceEntry = Timestamps & {
+  date: string
+  staff: string
+  boiler_id: number | null
+  work_done: string
+  duration: string
+  next_due: string
 }
+
+export type MeterReading = Timestamps & {
+  date: string
+  boiler_id: number
+  reading: number
+  staff: string
+  notes: string
+}
+
+export type EarningEntry = Timestamps & {
+  date: string
+  scheme: string
+  amount: number
+  boiler_id: number | null
+  notes: string
+}
+
+export type ListResponse<T> = { items: T[] }
+export type ItemResponse<T> = { item: T }
+export type DeleteResponse = { ok: boolean; id: number }
 
 export type ConnectionSettings = {
   apiUrl: string
   apiKey: string
-}
-
-export type RequestLog = {
-  id: number
-  at: string
-  method: string
-  path: string
-  status: number | null
-  ms: number | null
-  ok: boolean
-  detail: string
 }
