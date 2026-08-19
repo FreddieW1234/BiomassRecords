@@ -61,18 +61,14 @@ export function useLedger<TItem extends { id: number }, TForm extends Record<str
     setSaving(true)
     try {
       const payload = toPayload ? toPayload(form) : form
-      if (editingId) {
-        await api.update(editingId, payload)
-      } else {
-        await api.create(payload)
-      }
+      const result = editingId ? await api.update(editingId, payload) : await api.create(payload)
       setEditingId(null)
       setForm(empty())
       await refresh()
-      return true
+      return result.data.item
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Save failed')
-      return false
+      return null
     } finally {
       setSaving(false)
     }

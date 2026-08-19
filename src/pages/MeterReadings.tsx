@@ -1,10 +1,11 @@
 import { useMemo, type FormEvent } from 'react'
-import { meterReadingsApi } from '../api/client'
+import { meterReadingsApi, metersApi } from '../api/client'
 import type { MeterReading } from '../api/types'
 import { BoilerSelect } from '../components/BoilerSelect'
 import { useBoilers } from '../hooks/useBoilers'
 import { useLedger } from '../hooks/useLedger'
-import { boilerLabel, figure, showDate, today } from '../lib/format'
+import { useList } from '../hooks/useList'
+import { boilerLabel, figure, idValue, showDate, today } from '../lib/format'
 
 const empty = () => ({
   date: today(),
@@ -12,10 +13,13 @@ const empty = () => ({
   reading: '',
   staff: '',
   notes: '',
+  meter_id: '',
+  reading_at: '',
 })
 
 export function MeterReadings() {
   const { boilers, byId } = useBoilers()
+  const { items: meters } = useList(metersApi)
   const ledger = useLedger<MeterReading, ReturnType<typeof empty>>({
     api: meterReadingsApi,
     empty,
@@ -25,6 +29,8 @@ export function MeterReadings() {
       reading: String(r.reading),
       staff: r.staff,
       notes: r.notes,
+      meter_id: idValue(r.meter_id),
+      reading_at: r.reading_at || '',
     }),
   })
 
@@ -89,6 +95,31 @@ export function MeterReadings() {
               value={ledger.form.boiler_id}
               onChange={(value) => ledger.setField('boiler_id', value)}
               required
+            />
+          </label>
+          <label>
+            Meter
+            <select
+              value={ledger.form.meter_id}
+              onChange={(e) => ledger.setField('meter_id', e.target.value)}
+            >
+              <option value="">Not linked to a meter row</option>
+              {meters
+                .filter((meter) => !ledger.form.boiler_id || String(meter.boiler_id) === ledger.form.boiler_id)
+                .map((meter) => (
+                  <option key={meter.id} value={String(meter.id)}>
+                    {meter.serial_number}
+                    {meter.meter_type ? ` · ${meter.meter_type}` : ''}
+                  </option>
+                ))}
+            </select>
+          </label>
+          <label>
+            Time (optional)
+            <input
+              value={ledger.form.reading_at}
+              onChange={(e) => ledger.setField('reading_at', e.target.value)}
+              placeholder="HH:MM or full timestamp"
             />
           </label>
           <label>

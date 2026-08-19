@@ -8,6 +8,26 @@ export type HealthResponse = {
   maintenanceCount: number
   meterReadingCount: number
   earningCount: number
+  siteCount?: number
+  meterCount?: number
+  fuelStoreCount?: number
+  fuelSupplierCount?: number
+  fuelBatchCount?: number
+  fuelDeliveryCount?: number
+  fuelConsumptionCount?: number
+  maintenanceTemplateCount?: number
+  maintenanceTaskCount?: number
+  defectCount?: number
+  hsInspectionCount?: number
+  documentCount?: number
+}
+
+export type AlertItem = {
+  kind: string
+  resource: string
+  id: number
+  due: string
+  text: string
 }
 
 type Timestamps = {
@@ -16,10 +36,111 @@ type Timestamps = {
   updated_at: string
 }
 
+export type Site = Timestamps & {
+  name: string
+  address: string
+  notes: string
+}
+
 export type Boiler = Timestamps & {
   number: string
   type: string
   location: string
+  notes: string
+  site_id: number | null
+  manufacturer: string
+  model: string
+  serial_number: string
+  fuel_type: string
+  nominal_output_kw: number
+  installed_on: string
+  accredited_on: string
+  scheme: string
+  emissions_certificate: string
+  permitted_fuels: string
+  status: string
+  heat_uses: string
+  operator: string
+  sold_on: string
+  sold_to: string
+  final_reading: number
+}
+
+export type Meter = Timestamps & {
+  boiler_id: number
+  serial_number: string
+  meter_type: string
+  location: string
+  commissioned_on: string
+  commissioning_reading: number
+  replaced_on: string
+  notes: string
+}
+
+export type FuelStore = Timestamps & {
+  site_id: number | null
+  name: string
+  store_type: string
+  capacity: string
+  location: string
+  moisture_protection: string
+  fire_protection: string
+  notes: string
+}
+
+export type FuelSupplier = Timestamps & {
+  name: string
+  bsl_sfr_number: string
+  contact: string
+  notes: string
+}
+
+export type FuelBatch = Timestamps & {
+  supplier_id: number | null
+  fuel_type: string
+  supply_route: string
+  grade: string
+  bsl_sfr_number: string
+  moisture_content: string
+  species: string
+  virgin_wood: string
+  harvest_location: string
+  harvest_from: string
+  harvest_to: string
+  felling_reference: string
+  roundwood_qty: number
+  roundwood_unit: string
+  chipping_contractor: string
+  chipped_on: string
+  chip_location: string
+  chip_qty: number
+  chip_unit: string
+  quality_notes: string
+  notes: string
+}
+
+export type FuelDelivery = Timestamps & {
+  batch_id: number
+  store_id: number | null
+  boiler_id: number | null
+  date: string
+  quantity: number
+  unit: string
+  invoice_number: string
+  ticket_number: string
+  storage_condition: string
+  contamination: string
+  first_used_on: string
+  notes: string
+}
+
+export type FuelConsumption = Timestamps & {
+  boiler_id: number
+  batch_id: number | null
+  store_id: number | null
+  date: string
+  quantity: number
+  unit: string
   notes: string
 }
 
@@ -30,6 +151,9 @@ export type CleaningEntry = Timestamps & {
   work_done: string
   duration: string
   next_due: string
+  parts: string
+  engineer: string
+  outcome: string
 }
 
 export type MaintenanceEntry = Timestamps & {
@@ -39,6 +163,9 @@ export type MaintenanceEntry = Timestamps & {
   work_done: string
   duration: string
   next_due: string
+  parts: string
+  engineer: string
+  outcome: string
 }
 
 export type MeterReading = Timestamps & {
@@ -47,6 +174,8 @@ export type MeterReading = Timestamps & {
   reading: number
   staff: string
   notes: string
+  meter_id: number | null
+  reading_at: string
 }
 
 export type EarningEntry = Timestamps & {
@@ -54,6 +183,59 @@ export type EarningEntry = Timestamps & {
   scheme: string
   amount: number
   boiler_id: number | null
+  notes: string
+}
+
+export type MaintenanceTemplate = Timestamps & {
+  manufacturer: string
+  boiler_type: string
+  name: string
+  interval_days: number
+  checklist: string
+  notes: string
+}
+
+export type MaintenanceTask = Timestamps & {
+  boiler_id: number
+  template_id: number | null
+  title: string
+  due_on: string
+  status: string
+  completed_on: string
+  record_id: number | null
+  notes: string
+}
+
+export type Defect = Timestamps & {
+  boiler_id: number
+  date: string
+  description: string
+  severity: string
+  status: string
+  closed_on: string
+  notes: string
+}
+
+export type HsInspection = Timestamps & {
+  site_id: number | null
+  boiler_id: number | null
+  date: string
+  inspector: string
+  outcome: string
+  findings: string
+  next_due: string
+  notes: string
+}
+
+export type DocumentEntry = Timestamps & {
+  linked_resource: string
+  linked_id: number
+  doc_type: string
+  title: string
+  date: string
+  expires_on: string
+  original_filename: string
+  checksum: string
   notes: string
 }
 

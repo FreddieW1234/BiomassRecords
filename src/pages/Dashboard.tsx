@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { cleaningApi, earningsApi, maintenanceApi, meterReadingsApi } from '../api/client'
-import type { CleaningEntry, EarningEntry, MaintenanceEntry, MeterReading } from '../api/types'
+import { cleaningApi, earningsApi, getAlerts, maintenanceApi, meterReadingsApi } from '../api/client'
+import type { AlertItem, CleaningEntry, EarningEntry, MaintenanceEntry, MeterReading } from '../api/types'
 import { useBoilers } from '../hooks/useBoilers'
 import { boilerLabel, figure, money, showDate, today } from '../lib/format'
+import { ALERT_LINKS } from '../lib/options'
 
 type DueItem = {
   kind: 'Cleaning' | 'Maintenance'
@@ -26,18 +27,26 @@ export function Dashboard() {
   const [maintenance, setMaintenance] = useState<MaintenanceEntry[]>([])
   const [readings, setReadings] = useState<MeterReading[]>([])
   const [earnings, setEarnings] = useState<EarningEntry[]>([])
+  const [alerts, setAlerts] = useState<AlertItem[]>([])
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     let cancelled = false
-    Promise.all([cleaningApi.list(), maintenanceApi.list(), meterReadingsApi.list(), earningsApi.list()])
-      .then(([c, m, r, e]) => {
+    Promise.all([
+      cleaningApi.list(),
+      maintenanceApi.list(),
+      meterReadingsApi.list(),
+      earningsApi.list(),
+      getAlerts().catch(() => ({ data: { items: [] as AlertItem[] } })),
+    ])
+      .then(([c, m, r, e, a]) => {
         if (cancelled) return
         setCleaning(c.data.items)
         setMaintenance(m.data.items)
         setReadings(r.data.items)
         setEarnings(e.data.items)
+        setAlerts(a.data.items)
       })
       .catch((err) => {
         if (!cancelled) setError(err instanceof Error ? err.message : 'Could not load data')
@@ -143,7 +152,33 @@ export function Dashboard() {
           <span className="stat-label">Meter readings</span>
           <span className="stat-value">{readings.length}</span>
         </Link>
+        <div className={`stat${alerts.length > 0 ? ' alert' : ''}`}>
+          <span className="stat-label">Compliance alerts</span>
+          <span className="stat-value">{alerts.length}</span>
+        </div>
       </div>
+
+      {alerts.length > 0 && (
+        <section className="card">
+          <div className="card-head">
+            <h2>Needs attention</h2>
+            <span className="count">{alerts.length}</span>
+          </div>
+          <ul className="due-list">
+            {alerts.slice(0, 12).map((item) => (
+              <li key={`${item.kind}-${item.id}`}>
+                <Link to={ALERT_LINKS[item.resource] || '/'} className="due-kind">
+                  {item.kind.replaceAll('_', ' ')}
+                </Link>
+                <span className="due-boiler">{item.text}</span>
+                <span className={`due-date${item.due && item.due < today() ? ' overdue-text' : ''}`}>
+                  {item.due ? showDate(item.due) : '—'}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       <div className="split even">
         <section className="card">

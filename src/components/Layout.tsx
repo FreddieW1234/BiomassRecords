@@ -36,8 +36,22 @@ export function Layout() {
           <NavLink to="/maintenance">Maintenance</NavLink>
           <NavLink to="/meter-readings">Meter readings</NavLink>
           <NavLink to="/earnings">Earnings</NavLink>
+          <p className="nav-label">Fuel</p>
+          <NavLink to="/fuel-suppliers">Suppliers</NavLink>
+          <NavLink to="/fuel-batches">Batches</NavLink>
+          <NavLink to="/fuel-deliveries">Deliveries</NavLink>
+          <NavLink to="/fuel-consumption">Usage</NavLink>
+          <NavLink to="/fuel-stores">Stores</NavLink>
+          <p className="nav-label">Compliance</p>
+          <NavLink to="/maintenance-tasks">Tasks</NavLink>
+          <NavLink to="/maintenance-templates">Templates</NavLink>
+          <NavLink to="/defects">Defects</NavLink>
+          <NavLink to="/hs-inspections">H&S</NavLink>
+          <NavLink to="/documents">Documents</NavLink>
           <p className="nav-label">Setup</p>
+          <NavLink to="/sites">Sites</NavLink>
           <NavLink to="/boilers">Boilers</NavLink>
+          <NavLink to="/meters">Meters</NavLink>
         </nav>
 
         <div className="sidebar-foot">
@@ -55,6 +69,7 @@ export function Layout() {
               {!checking && kind === 'idle' && 'Not checked yet'}
             </span>
           </button>
+          {lastError && kind === 'down' && <p className="muted">{lastError}</p>}
           {lastMs !== null && <p className="muted">Last check {lastMs} ms</p>}
         </div>
       </aside>

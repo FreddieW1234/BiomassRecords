@@ -13,6 +13,9 @@ const empty = () => ({
   work_done: '',
   duration: '',
   next_due: '',
+  parts: '',
+  engineer: '',
+  outcome: '',
 })
 
 type Props = {
@@ -34,6 +37,9 @@ export function WorkLog({ title, blurb, workLabel, api }: Props) {
       work_done: e.work_done,
       duration: e.duration,
       next_due: e.next_due,
+      parts: e.parts || '',
+      engineer: e.engineer || '',
+      outcome: e.outcome || '',
     }),
   })
 
@@ -109,6 +115,32 @@ export function WorkLog({ title, blurb, workLabel, api }: Props) {
               />
             </label>
           </div>
+          <div className="field-row">
+            <label>
+              Parts
+              <input
+                value={ledger.form.parts}
+                onChange={(e) => ledger.setField('parts', e.target.value)}
+                placeholder="Optional"
+              />
+            </label>
+            <label>
+              Engineer
+              <input
+                value={ledger.form.engineer}
+                onChange={(e) => ledger.setField('engineer', e.target.value)}
+                placeholder="Optional"
+              />
+            </label>
+          </div>
+          <label>
+            Outcome
+            <input
+              value={ledger.form.outcome}
+              onChange={(e) => ledger.setField('outcome', e.target.value)}
+              placeholder="Optional"
+            />
+          </label>
           <div className="row">
             <button type="submit" className="button" disabled={ledger.saving}>
               {ledger.editingId ? 'Save changes' : 'Add entry'}

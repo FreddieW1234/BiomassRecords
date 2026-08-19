@@ -1,147 +1,128 @@
-import { useMemo, type FormEvent } from 'react'
-import { boilersApi } from '../api/client'
+import { boilersApi, sitesApi } from '../api/client'
 import type { Boiler } from '../api/types'
-import { useLedger } from '../hooks/useLedger'
+import { RecordPage } from '../components/RecordPage'
+import { useList } from '../hooks/useList'
+import { idValue } from '../lib/format'
+import { BOILER_STATUSES, FUEL_TYPES, MANUFACTURERS, selectOptions } from '../lib/options'
 
-const empty = () => ({ number: '', type: '', location: '', notes: '' })
+const empty = () => ({
+  number: '',
+  type: '',
+  location: '',
+  notes: '',
+  site_id: '',
+  manufacturer: '',
+  model: '',
+  serial_number: '',
+  fuel_type: '',
+  nominal_output_kw: '',
+  installed_on: '',
+  accredited_on: '',
+  scheme: '',
+  emissions_certificate: '',
+  permitted_fuels: '',
+  status: 'ACTIVE',
+  heat_uses: '',
+  operator: '',
+  sold_on: '',
+  sold_to: '',
+  final_reading: '',
+})
 
 export function Boilers() {
-  const ledger = useLedger<Boiler, ReturnType<typeof empty>>({
-    api: boilersApi,
-    empty,
-    toForm: (b) => ({ number: b.number, type: b.type, location: b.location, notes: b.notes }),
-  })
-
-  const knownTypes = useMemo(
-    () => [...new Set(ledger.items.map((b) => b.type).filter(Boolean))],
-    [ledger.items],
-  )
-
-  function onSubmit(event: FormEvent) {
-    event.preventDefault()
-    void ledger.submit()
-  }
+  const { items: sites } = useList(sitesApi)
 
   return (
-    <div className="page">
-      <div className="page-head">
-        <h1>Boilers</h1>
-        <p>
-          The register of boilers. Every cleaning, maintenance, and meter entry can point at one of
-          these, so set them up first.
-        </p>
-      </div>
-
-      <div className="split">
-        <form className="card form-card" onSubmit={onSubmit}>
-          <h2>{ledger.editingId ? `Edit boiler #${ledger.editingId}` : 'Add a boiler'}</h2>
-          <label>
-            Boiler number
-            <input
-              value={ledger.form.number}
-              onChange={(e) => ledger.setField('number', e.target.value)}
-              placeholder="e.g. 1, 2, B3"
-              required
-            />
-          </label>
-          <label>
-            Type
-            <input
-              value={ledger.form.type}
-              onChange={(e) => ledger.setField('type', e.target.value)}
-              placeholder="e.g. Herz 150kW, ETA Hack 200"
-              list="boiler-types"
-              required
-            />
-            <datalist id="boiler-types">
-              {knownTypes.map((t) => (
-                <option key={t} value={t} />
-              ))}
-            </datalist>
-          </label>
-          <label>
-            Location
-            <input
-              value={ledger.form.location}
-              onChange={(e) => ledger.setField('location', e.target.value)}
-              placeholder="Site or building (optional)"
-            />
-          </label>
-          <label>
-            Notes
-            <textarea
-              value={ledger.form.notes}
-              onChange={(e) => ledger.setField('notes', e.target.value)}
-              rows={3}
-            />
-          </label>
-          <div className="row">
-            <button type="submit" className="button" disabled={ledger.saving}>
-              {ledger.editingId ? 'Save changes' : 'Add boiler'}
-            </button>
-            {ledger.editingId && (
-              <button type="button" className="button ghost" onClick={ledger.cancel}>
-                Cancel
-              </button>
-            )}
-          </div>
-          {ledger.error && <p className="err">{ledger.error}</p>}
-        </form>
-
-        <section className="card">
-          <div className="card-head">
-            <h2>Register</h2>
-            <span className="count">{ledger.items.length}</span>
-          </div>
-          {ledger.loading ? (
-            <p className="muted">Loading…</p>
-          ) : ledger.items.length === 0 ? (
-            <p className="muted">No boilers yet. Add the first one on the left.</p>
-          ) : (
-            <div className="table-wrap">
-              <table className="ledger">
-                <thead>
-                  <tr>
-                    <th>No.</th>
-                    <th>Type</th>
-                    <th>Location</th>
-                    <th>Notes</th>
-                    <th />
-                  </tr>
-                </thead>
-                <tbody>
-                  {ledger.items.map((boiler) => (
-                    <tr key={boiler.id}>
-                      <td>
-                        <span className="chip">No. {boiler.number}</span>
-                      </td>
-                      <td>{boiler.type}</td>
-                      <td>{boiler.location || '—'}</td>
-                      <td className="wrap">{boiler.notes || '—'}</td>
-                      <td className="actions">
-                        <button
-                          type="button"
-                          className="text-button"
-                          onClick={() => ledger.edit(boiler)}
-                        >
-                          Edit
-                        </button>
-                        <button
-                          type="button"
-                          className="text-button danger"
-                          onClick={() => void ledger.remove(boiler.id)}
-                        >
-                          Delete
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </section>
-      </div>
-    </div>
+    <RecordPage<Boiler>
+      title="Boilers"
+      blurb="Master register. Cleaning, fuel, meters and tasks all point at these rows. Status stays on the boiler when it is sold or archived."
+      tableTitle="Register"
+      api={boilersApi}
+      empty={empty}
+      toForm={(b) => ({
+        number: b.number,
+        type: b.type,
+        location: b.location,
+        notes: b.notes,
+        site_id: idValue(b.site_id),
+        manufacturer: b.manufacturer,
+        model: b.model,
+        serial_number: b.serial_number,
+        fuel_type: b.fuel_type,
+        nominal_output_kw: b.nominal_output_kw ? String(b.nominal_output_kw) : '',
+        installed_on: b.installed_on,
+        accredited_on: b.accredited_on,
+        scheme: b.scheme,
+        emissions_certificate: b.emissions_certificate,
+        permitted_fuels: b.permitted_fuels,
+        status: b.status || 'ACTIVE',
+        heat_uses: b.heat_uses,
+        operator: b.operator,
+        sold_on: b.sold_on,
+        sold_to: b.sold_to,
+        final_reading: b.final_reading ? String(b.final_reading) : '',
+      })}
+      fields={[
+        { name: 'number', label: 'Boiler number', required: true, placeholder: 'e.g. 1, 2, B3', width: 'half' },
+        { name: 'type', label: 'Type / model name', required: true, placeholder: 'e.g. FACI 150', width: 'half' },
+        {
+          name: 'site_id',
+          label: 'Site',
+          kind: 'select',
+          options: sites.map((site) => ({ value: String(site.id), label: site.name })),
+          emptyLabel: 'No site',
+        },
+        { name: 'location', label: 'Location on site', placeholder: 'Building or plant room' },
+        {
+          name: 'manufacturer',
+          label: 'Manufacturer',
+          list: 'manufacturers',
+          listValues: MANUFACTURERS,
+          placeholder: 'FACI, Moretti Camini, Ala-Talkkari Veto…',
+          width: 'half',
+        },
+        { name: 'model', label: 'Model', width: 'half' },
+        { name: 'serial_number', label: 'Serial number', width: 'half' },
+        {
+          name: 'fuel_type',
+          label: 'Fuel type',
+          kind: 'select',
+          options: FUEL_TYPES,
+          emptyLabel: 'Not set',
+          width: 'half',
+        },
+        { name: 'nominal_output_kw', label: 'Nominal output (kW)', kind: 'number', width: 'half' },
+        {
+          name: 'status',
+          label: 'Status',
+          kind: 'select',
+          options: selectOptions(BOILER_STATUSES),
+          required: true,
+          width: 'half',
+        },
+        { name: 'installed_on', label: 'Installed', kind: 'date', width: 'half' },
+        { name: 'accredited_on', label: 'Accredited / registered', kind: 'date', width: 'half' },
+        { name: 'scheme', label: 'Scheme / compliance route', placeholder: 'e.g. RHI', width: 'half' },
+        { name: 'operator', label: 'Responsible operator', width: 'half' },
+        { name: 'emissions_certificate', label: 'Emissions certificate' },
+        { name: 'permitted_fuels', label: 'Permitted fuels' },
+        { name: 'heat_uses', label: 'Heat uses', placeholder: 'Space heating, DHW, process, drying…' },
+        { name: 'sold_on', label: 'Sold / transferred', kind: 'date', width: 'half' },
+        { name: 'sold_to', label: 'Buyer / transfer ref', width: 'half' },
+        { name: 'final_reading', label: 'Final meter reading', kind: 'number' },
+        { name: 'notes', label: 'Notes', kind: 'textarea', rows: 3 },
+      ]}
+      columns={[
+        {
+          header: 'No.',
+          cell: (item) => <span className="chip">No. {item.number}</span>,
+        },
+        { header: 'Type', cell: (item) => item.type },
+        { header: 'Status', className: 'nowrap', cell: (item) => item.status || 'ACTIVE' },
+        { header: 'Fuel', className: 'nowrap', cell: (item) => item.fuel_type || '—' },
+        { header: 'Serial', className: 'nowrap', cell: (item) => item.serial_number || '—' },
+        { header: 'Location', cell: (item) => item.location || '—' },
+      ]}
+    />
   )
 }

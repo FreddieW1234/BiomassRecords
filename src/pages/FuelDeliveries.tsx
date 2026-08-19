@@ -1,0 +1,104 @@
+import { boilersApi, fuelBatchesApi, fuelDeliveriesApi, fuelStoresApi } from '../api/client'
+import type { FuelDelivery } from '../api/types'
+import { RecordPage } from '../components/RecordPage'
+import { useList } from '../hooks/useList'
+import { boilerLabel, figure, idValue, showDate, today } from '../lib/format'
+
+function batchLabel(id: number, batches: { id: number; fuel_type: string }[]) {
+  const batch = batches.find((item) => item.id === id)
+  return batch ? `Batch #${id} · ${batch.fuel_type}` : `Batch #${id}`
+}
+
+const empty = () => ({
+  batch_id: '',
+  store_id: '',
+  boiler_id: '',
+  date: today(),
+  quantity: '',
+  unit: 't',
+  invoice_number: '',
+  ticket_number: '',
+  storage_condition: '',
+  contamination: '',
+  first_used_on: '',
+  notes: '',
+})
+
+export function FuelDeliveries() {
+  const { items: batches } = useList(fuelBatchesApi)
+  const { items: stores, byId: storesById } = useList(fuelStoresApi)
+  const { items: boilers, byId: boilersById } = useList(boilersApi)
+
+  return (
+    <RecordPage<FuelDelivery>
+      title="Fuel deliveries"
+      blurb="Receipts into a store. Attach invoices and tickets on the Documents page after you save the row."
+      tableTitle="Deliveries"
+      api={fuelDeliveriesApi}
+      empty={empty}
+      toForm={(item) => ({
+        batch_id: String(item.batch_id),
+        store_id: idValue(item.store_id),
+        boiler_id: idValue(item.boiler_id),
+        date: item.date,
+        quantity: String(item.quantity),
+        unit: item.unit,
+        invoice_number: item.invoice_number,
+        ticket_number: item.ticket_number,
+        storage_condition: item.storage_condition,
+        contamination: item.contamination,
+        first_used_on: item.first_used_on,
+        notes: item.notes,
+      })}
+      fields={[
+        {
+          name: 'batch_id',
+          label: 'Batch',
+          kind: 'select',
+          required: true,
+          options: batches.map((batch) => ({
+            value: String(batch.id),
+            label: batchLabel(batch.id, batches),
+          })),
+        },
+        { name: 'date', label: 'Delivery date', kind: 'date', required: true, width: 'half' },
+        { name: 'quantity', label: 'Quantity', kind: 'number', required: true, width: 'half' },
+        { name: 'unit', label: 'Unit', required: true, placeholder: 't, m³, kg', width: 'half' },
+        {
+          name: 'store_id',
+          label: 'Store',
+          kind: 'select',
+          options: stores.map((store) => ({ value: String(store.id), label: store.name })),
+          emptyLabel: 'Not set',
+          width: 'half',
+        },
+        {
+          name: 'boiler_id',
+          label: 'Boiler (optional)',
+          kind: 'select',
+          options: boilers.map((boiler) => ({ value: String(boiler.id), label: boilerLabel(boiler) })),
+          emptyLabel: 'Not boiler-specific',
+        },
+        { name: 'invoice_number', label: 'Invoice number', width: 'half' },
+        { name: 'ticket_number', label: 'Ticket / vehicle ref', width: 'half' },
+        { name: 'storage_condition', label: 'Storage condition at receipt' },
+        { name: 'contamination', label: 'Contamination' },
+        { name: 'first_used_on', label: 'First used', kind: 'date' },
+        { name: 'notes', label: 'Notes', kind: 'textarea', rows: 2 },
+      ]}
+      columns={[
+        { header: 'Date', className: 'nowrap', cell: (item) => showDate(item.date) },
+        { header: 'Batch', className: 'nowrap', cell: (item) => batchLabel(item.batch_id, batches) },
+        { header: 'Qty', className: 'num', cell: (item) => `${figure(item.quantity)} ${item.unit}` },
+        { header: 'Store', cell: (item) => (item.store_id ? storesById.get(item.store_id)?.name || '—' : '—') },
+        { header: 'Invoice', className: 'nowrap', cell: (item) => item.invoice_number || '—' },
+        {
+          header: 'Boiler',
+          className: 'nowrap',
+          cell: (item) => (item.boiler_id ? boilerLabel(boilersById.get(item.boiler_id)) : '—'),
+        },
+      ]}
+      hint={batches.length === 0 ? 'Add a fuel batch first.' : undefined}
+    />
+  )
+}

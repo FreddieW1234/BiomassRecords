@@ -1,14 +1,27 @@
 import { loadSettings } from '../config'
 import type {
+  AlertItem,
   Boiler,
   CleaningEntry,
+  Defect,
   DeleteResponse,
+  DocumentEntry,
   EarningEntry,
+  FuelBatch,
+  FuelConsumption,
+  FuelDelivery,
+  FuelStore,
+  FuelSupplier,
   HealthResponse,
+  HsInspection,
   ItemResponse,
   ListResponse,
   MaintenanceEntry,
+  MaintenanceTask,
+  MaintenanceTemplate,
+  Meter,
   MeterReading,
+  Site,
 } from './types'
 
 export class ApiError extends Error {
@@ -43,10 +56,10 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<ApiResu
 
   const method = (init.method || 'GET').toUpperCase()
   const headers = new Headers(init.headers)
-  if (!headers.has('Content-Type') && init.body) {
+  if (!headers.has('Content-Type') && init.body && !(init.body instanceof ArrayBuffer) && !(init.body instanceof Blob)) {
     headers.set('Content-Type', 'application/json')
   }
-  if (apiKey) {
+  if (apiKey && path !== '/api/health') {
     headers.set('X-API-Key', apiKey)
   }
 
@@ -89,6 +102,10 @@ export function getHealth() {
   return request<HealthResponse>('/api/health')
 }
 
+export function getAlerts() {
+  return request<ListResponse<AlertItem>>('/api/alerts')
+}
+
 export type Resource<TItem> = {
   list: () => Promise<ApiResult<ListResponse<TItem>>>
   create: (payload: Record<string, unknown>) => Promise<ApiResult<ItemResponse<TItem>>>
@@ -110,8 +127,71 @@ function resource<TItem>(base: string): Resource<TItem> {
   }
 }
 
+export const sitesApi = resource<Site>('/api/sites')
 export const boilersApi = resource<Boiler>('/api/boilers')
+export const metersApi = resource<Meter>('/api/meters')
+export const fuelStoresApi = resource<FuelStore>('/api/fuel-stores')
+export const fuelSuppliersApi = resource<FuelSupplier>('/api/fuel-suppliers')
+export const fuelBatchesApi = resource<FuelBatch>('/api/fuel-batches')
+export const fuelDeliveriesApi = resource<FuelDelivery>('/api/fuel-deliveries')
+export const fuelConsumptionApi = resource<FuelConsumption>('/api/fuel-consumption')
 export const cleaningApi = resource<CleaningEntry>('/api/cleaning')
 export const maintenanceApi = resource<MaintenanceEntry>('/api/maintenance')
 export const meterReadingsApi = resource<MeterReading>('/api/meter-readings')
 export const earningsApi = resource<EarningEntry>('/api/earnings')
+export const maintenanceTemplatesApi = resource<MaintenanceTemplate>('/api/maintenance-templates')
+export const maintenanceTasksApi = resource<MaintenanceTask>('/api/maintenance-tasks')
+export const defectsApi = resource<Defect>('/api/defects')
+export const hsInspectionsApi = resource<HsInspection>('/api/hs-inspections')
+export const documentsApi = resource<DocumentEntry>('/api/documents')
+
+export function listResource(slug: string) {
+  return request<ListResponse<Record<string, unknown>>>(`/api/${slug}`)
+}
+
+export async function uploadDocumentFile(id: number, file: File) {
+  const buffer = await file.arrayBuffer()
+  return request<ItemResponse<DocumentEntry>>(`/api/documents/${id}/file`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/octet-stream',
+      'X-Filename': file.name,
+    },
+    body: buffer,
+  })
+}
+
+export async function downloadDocumentFile(id: number, filename: string) {
+  const { apiUrl, apiKey } = loadSettings()
+  if (!apiUrl) {
+    throw new ApiError('No API URL configured in this build.', 0, `/api/documents/${id}/file`)
+  }
+  const headers = new Headers()
+  if (apiKey) headers.set('X-API-Key', apiKey)
+  const path = `/api/documents/${id}/file`
+  let response: Response
+  try {
+    response = await fetch(joinUrl(apiUrl, path), { headers })
+  } catch {
+    throw new ApiError('Could not reach the office server. Check your connection and try again.', 0, path)
+  }
+  if (!response.ok) {
+    let message = `Request failed (${response.status})`
+    try {
+      const parsed = (await response.json()) as { error?: string }
+      if (parsed.error) message = parsed.error
+    } catch {
+      // keep status message
+    }
+    throw new ApiError(message, response.status, path)
+  }
+  const blob = await response.blob()
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = filename || 'download'
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  URL.revokeObjectURL(url)
+}
